@@ -159,7 +159,7 @@ class Collection:
         return self.search(search_str=None)
 
     def search(self, search_str: str=None) -> Iterator['Raindrop']:
-        def create_raindrop_from_raindrop_dict(raindrop_dict):
+        def create_or_update_raindrop_from_raindrop_dict(raindrop_dict):
             with LOCK:
                 raindrop = self._raindrops.get(raindrop_dict['_id'])
 
@@ -186,7 +186,7 @@ class Collection:
                 for raindrop_dict in response.json()['items']:
                     futures.append(
                         executor.submit(
-                            create_raindrop_from_raindrop_dict,
+                            create_or_update_raindrop_from_raindrop_dict,
                             raindrop_dict=raindrop_dict,
                         )
                     )
