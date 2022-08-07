@@ -30,8 +30,11 @@ def fetch_response(request, url, headers, params={}):
         wait = response.headers.get('retry-after')
         if wait is None:
             wait = 10
+            msg = f'PyRaindropIO - bad response recieved from Raindrop.io API. Retrying in 10 seconds...'
+        else:
+            msg = f'PyRaindropIO - waiting {int(wait)} seconds for Raindrop.io API to allow more requests.'
         with LOCK:
-            print(f'Waiting for {int(wait)} seconds')
+            print(msg)
 
         time.sleep(int(wait)+1)
 
@@ -200,7 +203,7 @@ class Collection:
 
 class Raindrop:
     id: int
-    collection: str
+    collection: dict
     cover: str
     created: str
     domain: str
