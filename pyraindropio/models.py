@@ -158,8 +158,52 @@ class Collection:
     def __getitem__(self, raindrop_id: int) -> 'Raindrop':
         return self._raindrops.get(raindrop_id)
 
-    def fetch_all_raindrops(self):
-        return self.search(search_str=None)
+    def _get_all_highlights(self):
+        highlights = []
+        page = 0
+        while True:
+            response = fetch_response(
+                request=requests.get,
+                url=f"{BASE_API_URL}/highlights/{self.id}",
+                params={
+                    'page': page,
+                    'perpage': MAX_ITEMS_PER_PAGE
+                },
+                headers=_get_headers(self._access_token)
+            )
+            data = response.json()['items']
+            if len(data) == 0:
+                break
+            highlights.extend(data)
+            page += 1
+
+        return highlights
+
+    def fetch_all_raindrops(self) -> None:
+        raindrops = {d['_id']: Raindrop(d, self._access_token) for d in self._get_raindrops_info_by_search()}
+        for highlight_dict in self._get_all_highlights():
+            raindrops[highlight_dict['raindropRef']].highlights.insert(0, Highlight(highlight_dict))
+        
+        self._raindrops = raindrops
+        return self
+
+    def _get_raindrops_info_by_search(self, search_str: str = None):
+        raindrop_dicts = []
+        for page in range(0, math.ceil(self.count / MAX_ITEMS_PER_PAGE)):
+            response = fetch_response(
+                request=requests.get,
+                url=f"{BASE_API_URL}/raindrops/{self.id}",
+                params={
+                    'search': search_str,
+                    'page': page,
+                    'perpage': MAX_ITEMS_PER_PAGE
+                },
+                headers=_get_headers(self._access_token)
+            )
+            for raindrop_dict in response.json()['items']:
+                raindrop_dicts.append(raindrop_dict)
+        
+        return raindrop_dicts
 
     def search(self, search_str: str=None) -> Iterator['Raindrop']:
         def create_or_update_raindrop_from_raindrop_dict(raindrop_dict):
@@ -171,28 +215,17 @@ class Collection:
             else:
                 raindrop.update_dict(raindrop_dict)
 
-            return raindrop
+            return raindrop.fetch_highlights()
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=self._max_threads) as executor:
             futures = []
-            for page in range(0, math.ceil(self.count / MAX_ITEMS_PER_PAGE)):
-                response = fetch_response(
-                    request=requests.get,
-                    url=f"{BASE_API_URL}/raindrops/{self.id}",
-                    params={
-                        'search': search_str,
-                        'page': page,
-                        'perpage': MAX_ITEMS_PER_PAGE
-                    },
-                    headers=_get_headers(self._access_token)
-                )
-                for raindrop_dict in response.json()['items']:
-                    futures.append(
-                        executor.submit(
-                            create_or_update_raindrop_from_raindrop_dict,
-                            raindrop_dict=raindrop_dict,
-                        )
+            for raindrop_dict in self._get_raindrops_info_by_search(search_str):
+                futures.append(
+                    executor.submit(
+                        create_or_update_raindrop_from_raindrop_dict,
+                        raindrop_dict=raindrop_dict,
                     )
+                )
 
             for future in concurrent.futures.as_completed(futures):
                 raindrop = future.result()
@@ -225,7 +258,6 @@ class Raindrop:
 
     def update_dict(self, new_raindrop_dict: dict) -> None:
         self._dict = new_raindrop_dict
-        self.fetch_highlights()
 
     @property
     def id(self) -> int:

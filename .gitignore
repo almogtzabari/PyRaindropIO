@@ -1,0 +1,14 @@
+.vscode/launch.json
+.vscode/settings.json
+pydropio/__pycache__/__init__.cpython-39.pyc
+pydropio/__pycache__/__init__.cpython-310.pyc
+pydropio/__pycache__/constants.cpython-39.pyc
+pydropio/__pycache__/constants.cpython-310.pyc
+pydropio/__pycache__/models.cpython-39.pyc
+pydropio/__pycache__/models.cpython-310.pyc
+tests/__pycache__/test_simple.cpython-39.pyc
+tests/__pycache__/test_simple.cpython-310.pyc
+*/__pycache__/*
+dist/*
+build/*
+*.egg-info*
